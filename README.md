@@ -5,7 +5,7 @@ This document provides guidance on running mbamta.py, a Python script for perfor
 
 This script is equipped to be run from the command line:
 
-/mbamta.py n
+python3 /DIRECTORY/mbamta.py n
 
 The argument n is an integer that specifies the number of simulated data sets to be generated and analyzed for the purpose of gathering statistics on the results.
 
