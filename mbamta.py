@@ -25,15 +25,15 @@ usedata = ['all_data'] + [f'{round(c * 100)}_percent_trimmed_data'
                           for c in assumed_contam]
 
 # Specify directory containing the adaptive substitutions data:
-adir = './published_data/adaptive_changes/adaptive_csv'
+adir = './SOURCE_DATA/adaptive_changes/adaptive_csv'
 
 # Create DataFrame of species-specific mutation spectra by reading CSV file:
-m_spec = pd.read_csv('./published_data/mutation_spectra.csv')
+m_spec = pd.read_csv('./SOURCE_DATA/mutation_spectra.csv')
 
 # Create DataFrame of species names and mutation counts (the number
 # of empirical observations that inform the mutation-rate spectrum),
 # by reading CSV file; order species alphabetically:
-sp_mutn = pd.read_csv('./published_data/species_list_and_mutation_counts'
+sp_mutn = pd.read_csv('./SOURCE_DATA/species_list_and_mutation_counts'
                       '.csv').sort_values(by='species', ignore_index=True)
 
 # Specify types of mutation bias that will be used in downstream analyses:
@@ -116,7 +116,7 @@ def species_name(species):
 
 # Create species-specific dictionary of codon usage frequencies:
 def codon_use(species):
-    ctbl, cfrq = pd.read_csv(f'./published_data/codon_use/{species}.csv'), {}
+    ctbl, cfrq = pd.read_csv(f'./SOURCE_DATA/codon_use/{species}.csv'), {}
     for codon in range(len(ctbl)):
         cfrq[ctbl.iloc[codon]['codon']] = (ctbl.iloc[codon]['fraction'])
     return cfrq
