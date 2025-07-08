@@ -12,7 +12,7 @@ The argument n is an integer that specifies the number of simulated data sets to
 
 SOURCE DATA:
 
-This program uses four types of source data, each of which is species-specific: the spectra of new mutations and the sample sizes for the mutation-rate measurements used to generate these mutation spectra, the codon-usage frequencies that will serve as weights on the mutation-rate measurements to derive expectations for protein-coding changes, and spectra of raw adaptive substitutions. (Example input data can be downloaded from https://github.com/bgitschlag/mbamta/Gitschlag_et_al_2025_SOURCE_DATA.zip):
+This program uses four types of source data, each of which is species-specific: the spectra of new mutations and the sample sizes for the mutation-rate measurements used to generate these mutation spectra, the codon-usage frequencies that will serve as weights on the mutation-rate measurements to derive expectations for protein-coding changes, and spectra of raw adaptive substitutions. (Example input data can be downloaded from https://github.com/bgitschlag/mbamta/blob/main/Gitschlag_et_al_2025_SOURCE_DATA.zip):
 
 Taxa included in analysis (one column of the following CSV file):
 ```
