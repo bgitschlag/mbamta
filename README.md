@@ -18,25 +18,25 @@ This program uses four types of source data, each of which is species-specific: 
 
 Taxa included in analysis (one column of the following CSV file):
 ```
-./published_data/species_list_and_mutation_counts.csv
+./SOURCE_DATA/species_list_and_mutation_counts.csv
 ```
 
 Sample sizes for mutation-rate measurements (one column of the following CSV file):
 ```
-./published_data/species_list_and_mutation_counts.csv
+./SOURCE_DATA/species_list_and_mutation_counts.csv
 ```
 
 Mutation spectra (GC-weighted and normalized to sum to 1):
 ```
-./published_data/mutation_spectra.csv
+./SOURCE_DATA/mutation_spectra.csv
 ```
 
 Codon-usage frequency tables, species-specific:
 ```
-./published_data/codon_use/{species}.csv
+./SOURCE_DATA/codon_use/{species}.csv
 ```
 
 Adaptive observations (includes a column of raw counts):
 ```
-./published_data/adaptive_changes/adaptive_csv/{species}_adaptive_changes.csv
+./SOURCE_DATA/adaptive_changes/adaptive_csv/{species}_adaptive_changes.csv
 ```
