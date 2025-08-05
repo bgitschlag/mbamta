@@ -9,7 +9,7 @@ This script is equipped to be run from the command line:
 python3 /DIRECTORY/mbamta.py n
 ```
 
-The argument n is an integer that specifies the number of simulated data sets to be generated and analyzed for the purpose of gathering statistics on the results.
+The argument n is an integer that specifies the number of simulated data sets to be generated and analyzed for the purpose of gathering statistics on the results. n=10 is recommended for testing purposes.
 
 Allow approximately 8 to 10 minutes for script to run for n of 100; or 2 to 3 hours for n of 10k.
 
