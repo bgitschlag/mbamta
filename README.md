@@ -11,7 +11,7 @@ python3 /DIRECTORY/mbamta.py n
 
 The argument n is an integer that specifies the number of simulated data sets to be generated and analyzed for the purpose of gathering statistics on the results. n=10 is recommended for testing purposes.
 
-Allow approximately 8 to 10 minutes for script to run for n of 100; or 2 to 3 hours for n of 10k.
+For a local computer, e.g. 4 to 8 CPU cores and 16GB RAM, allow approximately 8 to 12 minutes for script to run for n of 100; or 2 to 4 hours for n of 10k.
 
 
 SOURCE DATA:
