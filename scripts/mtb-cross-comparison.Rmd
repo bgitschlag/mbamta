@@ -1,0 +1,317 @@
+---
+title: "MTB cross-comparison"
+author: "Arlin Stoltzfus"
+date: "2025-11-04"
+output: html_document
+---
+
+# Context 
+
+This script is part of the data processing for Gitschlag, et al. 2026. The source file is from a github repository associated with the project (https://github.com/bgitschlag/mbamta). 
+
+# Data processing for M. tuberculosis cross-comparison
+
+This script inputs the Basel and Manson data sets from Payne, et al. 2019 and combines them into a single data set after reconciling the formats. 
+
+```{r}
+# a source string 
+payne <- "Payne JL, Menardo F, Trauner A, Borrell S, Gygli SM, Loiseau C, Gagneux S, Hall AR. 2019. Transition bias influences the evolution of antibiotic resistance in Mycobacterium tuberculosis. PLoS Biol 17:e3000265."
+```
+
+The script then creates an output file with one row per pathway for each data set, and another output file that aggregates the data by nucleotide path and by effect category (missense, nonsense, or non-coding).
+
+These output files are used as inputs by another script that does the statistical analysis and plots the results.  Some plots are included below but these are not the ones used in Gitschlag, et al. 2026. 
+
+## Defining input files and reading tabular data
+
+```{r echo = FALSE}
+# Basel data set from Table S4 of Payne, et al
+datadir <- "./data"
+basel <- paste(datadir, "pbio.3000265.s004.csv", sep="/")
+# Manson data set from Table S5 of Manson, et al. 
+manson <- paste(datadir, "manson-tableS5.csv", sep="/")
+
+```
+Read in the data and check that we get 208 rows of nucleotide substitution data for Manson and 152 for Basel. The Manson data set has indels that we want to remove.  
+
+Actually the exported Manson file has a bunch of columns and rows that read.csv recognizes as being filled with NAs. So we just have to trim those off. Visual inspection indicates 11 columns and 392 data rows. 
+
+```{r}
+baseldat <- read.csv(basel, stringsAsFactors = FALSE)
+head(baseldat)
+dim(baseldat)[1] == 152
+
+mansondat <- read.csv(manson, stringsAsFactors = FALSE, na.strings = "n/a")
+head(mansondat)
+mansondat <- mansondat[1:392, 1:11]
+
+# removing insertion or deletion by matching on tion
+indels <- mansondat[grepl("tion", mansondat$Amino.Acid.Change), ]
+tmp <- table(indels$Amino.Acid.Change)
+tmp[order(as.numeric(gsub(" ?b.*", "", names(tmp))))]
+
+mansondat <- mansondat[!grepl("tion", mansondat$Amino.Acid.Change), ]
+dim(mansondat)[1] == 208
+
+```
+
+## Reconciling formats
+
+Before we can combine the two data sets, we need to reconcile.  The first step is to take out extra columns and transform the shared information into a standardized set of columns. 
+
+We have to split out the mutation column from Manson into the genomic site, the ref (from) base, and the alt (to) base. 
+
+```{r}
+colnames(mansondat)
+colnames(baseldat)
+
+# from Basel, we can get rid of count in column 7 
+baseldat <- baseldat[, -7]
+colnames(baseldat) <- c("site", "from_nt", "to_nt", "locus", "change", "drug", "events")
+
+# from Manson, we only need columns 1, 2, 3, 5 and 6
+mansondat <- mansondat[, c(1:3,5,6)]
+
+# start by parsing out mutation data in Manson and removing the old column
+mansondat$site <- as.numeric(gsub(":.*$", "", mansondat$mutation.in.genomic.coordinates))
+mansondat$from_nt <- gsub("(.*:)(.)(.*)", "\\2", mansondat$mutation.in.genomic.coordinates)
+mansondat$to_nt <- gsub("(.*:.->)(.*)", "\\2", mansondat$mutation.in.genomic.coordinates)
+mansondat <- mansondat[, -2]
+
+# reorder columns and rename
+mansondat <- mansondat[, c(5, 6, 7, 2, 3, 1, 4)]
+colnames(mansondat) <- c("site", "from_nt", "to_nt", "locus", "change", "drug", "events")
+
+```
+
+The next step is to recode the names for antibiotics. The total number should be 11.  Based on searching on PubMed, it is possible to confirm the following mapping. This was straightforward except that searching for "CAP" and "antibiotic" tends to give a lot of references to community-acquired pneumonia.  
+
+AK is a common abbreviation for Amikacin but AMK is more standard in the biomedical literature. Streptomycin should be abbreviated as STR, not SM. So, we are going to change those codes in the Basel data set.  Otherwise, the codes i the Basel dataset will stay the same.  For the Manson data set, all of the long names will be replaced by codes. 
+
+Note that Ofloxacin is a fluoroquinolone antibiotic. So, I'm not sure how this should be treated.  
+```{r}
+unique(mansondat$drug)
+unique(baseldat$drug)
+
+
+antibiotics <- c("AMK", "CAP", "EMB", "ETH", "FQ", "KAN", "INH", "OFX", "PZA", "RIF", "STR")           
+names <- c("Amikacin", "Capreomycin", "Ethambutol", "Ethionamide", "Fluoroquinolone", "Kanamycin", "Isoniazid", "Ofloxacin", "Pyrazinamide", "Rifampicin", "Streptomycin")
+
+# first fix the Basel drug list 
+tmp <- gsub("AK", "AMK", baseldat$drug)
+tmp <- gsub("SM", "STR", tmp)
+baseldat$drug <- tmp
+
+# now reconcile the Manson list. I don't have time to do this in a smart way
+tmp <- mansondat$drug
+for (idx in 1:11) {
+  tmp <- gsub(names[idx], antibiotics[idx], tmp)
+}
+tmp <- gsub(", ", ";", tmp)
+mansondat$drug <- tmp
+
+unique(baseldat$drug)
+unique(mansondat$drug)
+```
+Now we will combine these and denote 3 classes of change: amino acid substitution, nonsense, and non-coding. 
+
+In the Manson dataset, the non-coding changes are NA. In Basel, they have a negative position designation in the mutation string.  
+
+```{r}
+# add a label for the two datasets 
+baseldat$dataset <- "Basel"
+mansondat$dataset <- "Manson"
+
+# combine them
+combined <- rbind(baseldat, mansondat)
+
+# add an effect class
+tmp <- combined$change
+tmp[is.na(tmp)] <- "non-coding"
+tmp <- gsub(".*-.*", "non-coding", tmp)
+tmp <- gsub(".*\\*", "nonsense", tmp)
+tmp <- gsub(".*\\d.*", "missense", tmp)
+combined$effect <- tmp
+
+
+```
+
+## Combining data for output 
+
+Now we will make a combined dataset with all the information
+
+```{r}
+# combine strands to make this into 6 types
+tmp <- paste(combined$from_nt, combined$to_nt, sep = "")
+tmp <- gsub("CT", "GA", tmp)
+tmp <- gsub("CG", "GC", tmp)
+tmp <- gsub("CA", "GT", tmp)
+tmp <- gsub("TC", "AG", tmp)
+tmp <- gsub("TG", "AC", tmp)
+tmp <- gsub("TA", "AT", tmp)
+
+combined$ntpath <- tmp
+
+combined <- combined[, c("drug", "dataset", "site", "locus", "from_nt", "to_nt", "ntpath", "change", "effect", "events")]
+table(combined$effect)
+write.csv(combined, file = "combined-mtb-data.csv", row.names = FALSE)
+```
+
+And we will make an output file with the same data aggregated by nucleotide path, drug, and effect category. 
+
+```{r}
+ntpaths <- aggregate(combined$events, by=list(combined$ntpath, combined$drug, combined$effect), FUN = sum)
+colnames(ntpaths) <- c("ntpath", "drugs", "effect", "events")
+
+unique(ntpaths$ntpath[ntpaths$effect == "nonsense"])
+write.csv(ntpaths, file = "combined-mtb-ntpaths.csv", row.names = FALSE)
+```
+
+# Visualization 
+
+(note: the publication uses a different script in Python for visualization and analysis. the plots below are included for the convenience of R users)
+
+Now, let's consider what to do with the multi-resistant genotypes. A given row will list some set number of events n that are attributed with resistance to m different drugs.  Some ways to handle this:
+* delete - drop the rows with multi-drug resistance
+* sanitize - drop all data for the drugs that appear in multi-resistant combinations
+* copy - assign n events to each drug separately
+* split - assign n/m events to each drug
+* apportion - divide n according to other events assigned to the m drugs
+
+The formula for apportioning is pretty simple if we have just two drugs, as for ETH and INH, which have 44 and 899 separately and 420 in combination.  If e is the fraction for ETH, then 44 + 420e = 1363e, thus e = 44/1363 = 0.0466596.  
+
+For the CAP, AMK, KAN case we have 2 pairwise combinations and the 3-way combination. Let a, c and k be weights to apportion the counts.  The constraints to be satisfied are:
+
+0 < x < 1 for x in {a, b, c}
+a + c + k = 1
+456a = 6a/(a+c) + 145a 
+456c = 6 + 6c/(a+c) + 18c/(c+k) + 145c
+456k = 281 + 18k/(c+k) + 145k
+
+That's possibly not solvable. And it's too much work. Deleting just the combinations is problematic in the way it induces effects on the remaining spectrum for the constituent drugs. The "sanitize" method solves that problem, so I'm going to do that. 
+
+Let's do the non-coding aggregated over all drugs, and the missense ones with more than 50 events once we exclude the multiply resistant genotypes: EMB, FQ, INH, OFX, PZA, RIF and STR
+
+This code is repetitive but refactoring isn't a priority.
+```{r}
+# First, do the non-coding and missense totals over all drugs
+tmp <- ntpaths[ntpaths$effect == "non-coding", ]
+ncdat <- aggregate(tmp$events, by=list(tmp$ntpath), FUN = sum)
+colnames(ncdat) <- c("ntpath", "events")
+tot <- sum(ncdat$events)
+ncdat$freq <- ncdat$events / tot
+ncdat
+
+tmp <- ntpaths[ntpaths$effect == "missense", ]
+msdat <- aggregate(tmp$events, by=list(tmp$ntpath), FUN = sum)
+colnames(msdat) <- c("ntpath", "events")
+tot <- sum(msdat$events)
+msdat$freq <- msdat$events / tot
+msdat
+
+# now do the individual drugs
+drug <- "EMB"
+embdat <- ntpaths[ntpaths$drug == drug & ntpaths$effect == "missense", ]
+tot <- sum(embdat$events)
+embdat$freq <- embdat$events / tot
+embdat
+
+# FQ, add pseudocount for AT
+drug <- "FQ"
+fqdat <- ntpaths[ntpaths$drug == drug & ntpaths$effect == "missense", ]
+fqdat <- rbind(fqdat, c("AT", "FQ", "missense", 1))
+fqdat$events <- as.numeric(fqdat$events)
+tot <- sum(fqdat$events)
+fqdat$freq <- fqdat$events / tot
+fqdat
+
+# INH
+drug <- "INH"
+inhdat <- ntpaths[ntpaths$drug == drug & ntpaths$effect == "missense", ]
+inhdat <- rbind(inhdat, c("AT", "INH", "missense", 1))
+inhdat$events <- as.numeric(inhdat$events)
+tot <- sum(inhdat$events)
+inhdat$freq <- inhdat$events / tot
+inhdat
+
+# OFX
+drug <- "OFX"
+ofxdat <- ntpaths[ntpaths$drug == drug & ntpaths$effect == "missense", ]
+tot <- sum(ofxdat$events)
+ofxdat$freq <- ofxdat$events / tot
+ofxdat
+
+
+# PZA, 
+drug <- "PZA"
+pzadat <- ntpaths[ntpaths$drug == drug & ntpaths$effect == "missense", ]
+tot <- sum(pzadat$events)
+pzadat$freq <- pzadat$events / tot
+pzadat
+
+# RIF, 
+drug <- "RIF"
+rifdat <- ntpaths[ntpaths$drug == drug & ntpaths$effect == "missense", ]
+tot <- sum(rifdat$events)
+rifdat$freq <- rifdat$events / tot
+rifdat
+
+# STR, 
+drug <- "STR"
+strdat <- ntpaths[ntpaths$drug == drug & ntpaths$effect == "missense", ]
+tot <- sum(strdat$events)
+strdat$freq <- strdat$events / tot
+strdat
+```
+
+Now merge everything
+
+```{r}
+all <- merge(embdat[, c("ntpath", "events", "freq")], fqdat[, c("ntpath", "events", "freq")], by = "ntpath")
+all <- merge(all, inhdat[, c("ntpath", "events", "freq")], by = "ntpath")
+all <- merge(all, ofxdat[, c("ntpath", "events", "freq")], by = "ntpath")
+all <- merge(all, pzadat[, c("ntpath", "events", "freq")], by = "ntpath")
+all <- merge(all, rifdat[, c("ntpath", "events", "freq")], by = "ntpath")
+all <- merge(all, strdat[, c("ntpath", "events", "freq")], by = "ntpath")
+all <- merge(all, ncdat[, c("ntpath", "events", "freq")], by = "ntpath")
+all <- merge(all, msdat[, c("ntpath", "events", "freq")], by = "ntpath")
+names <- c("ntpath", "EMBevents", "EMB", "FQevents", "FQ", "INHevents", "INH", "OFXevents", "OFX", "PZAevents", "PZA", "RIFevents",  "RIF", "STRevents", "STR", "ncevents", "nc", "misevents", "mis")
+colnames(all) <- names
+
+# report out the totals for each category
+totals <- apply(all[, c(2, 4, 6, 8, 10, 12, 14, 16, 18)], 2, sum)
+totals
+```
+
+
+
+Figure legend.  Subsets of data from M. tuberculosis illustrate similarity and diversity in observed adaptive spectra. The Manson and Basel data sets of Payne, et al., contain missense, nonsense, and non-coding changes that confer antibiotic resistance. On the left, relative frequencies of the 6 types of nucleotide changes are compared between non-coding (920 events) and missense (4652 events). On the right, spectra of missense changes (ranging in size from 88 to 1329 events) are compared for the 7 drugs for which there are more than 50 events once multiply resistant genotypes are excluded (Ethambutol, Fluoroquinolone, Isoniazid, Ofloxacin, Pyrazinamide, Rifampicin, Streptomycin).  In principle, the spectrum of adaptive changes might differ radically for different selection conditions or different types of changes.  However, most of the spectra are quite similar, although the largest, for Rifampicin, is also the least representative.  
+
+```{r}
+mydf <- all[, c("mis", "nc")]
+plot(mydf, 
+      col = as.factor(all$ntpath), pch = 19,
+      xlim = c(0.001, 1), ylim = c(0.001, 1),
+      log = "xy", 
+      xlab = "missense", 
+      ylab = "non-coding", 
+      # abline(lm(log(mydf$nc) ~ log(mydf$mis)), col='blue')
+)
+text(all$mis, all$nc, all[, "ntpath"], cex = 0.7, pos = 3) 
+
+mydf <- all[, c("PZA", "EMB", "FQ", "OFX", "STR", "INH", "RIF")]
+pairs(mydf, 
+      col = as.factor(all$ntpath), pch = 19,
+      xlim = c(0.001, 1), ylim = c(0.001, 1),
+      log = "xy", 
+      lower.panel = NULL,
+      upper.panel = function(x, y, ...) {
+        points(x, y, ...) # Plot the points
+        # abline(lm(log(y) ~ log(x)), col='blue')
+        text(x, y, all[, "ntpath"], cex = 0.7, pos = 3) 
+      })
+
+
+```
+
+
