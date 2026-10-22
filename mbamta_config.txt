@@ -1,0 +1,55 @@
+simulations = 10000
+contamination = 0.4
+aa_effects = 'tang_et_al_2004_table2.csv'
+
+# Dimensions (based on number of species) for intra-species 
+# regressions figures, with coordinates for figure key:
+fd = {
+    1: [1, 2, 1], 2: [1, 3, 2], 3: [2, 2, 1],
+    4: [2, 3, 2], 5: [2, 3, 2], 6: [2, 4, 3],
+    7: [2, 4, 3], 8: [3, 3, 2], 9: [2, 5, 4],
+    10: [3, 4, 2], 11: [3, 4, 3], 12: [3, 5, 4],
+    13: [3, 5, 3], 14: [3, 5, 4], 15: [4, 4, 3]
+}
+
+phylogenetic_independence = [
+    ['e_coli', 'p_aeruginosa'],
+    ['e_coli', 'p_fluorescens'],
+    ['s_enterica', 'p_aeruginosa'],
+    ['s_enterica', 'p_fluorescens']
+]
+
+correct_for_pseudorep = True
+species = ['c_glutamicum', 'l_lactis', 'm_tuberculosis']
+query_cat = ['reference', 'reference', 'gene']
+
+criteria = [
+    ['Oide et al. Appl. Env. Micro., 81:7, 2015'], 
+    [
+        'Chen et al. Sci. Rep., 5:14199, 2015', 
+        'Dorau et al. Appl. Env. Micr., 87:21, 2021'
+    ], 
+    ['rpoB', 'Rv0667']
+]
+
+basel = './data/m_tuberculosis/pbio.3000265.s004.csv'
+manson = './data/m_tuberculosis/manson-tableS5.csv'
+mtb_rrs = './data/m_tuberculosis/m_tuberculosis_rrs.txt'
+
+syn_data = {
+    'e_coli': 'tenaillon_table_s2', 
+    'p_falciparum': 'cowell_table_s4', 
+    's_cerevisiae': 'ottilie_data_s4'
+}
+
+syn_effects = {
+    'e_coli': r'\bSynonymous\b', 
+    'p_falciparum': 'synonymous_variant', 
+    's_cerevisiae': 'synonymous_variant'
+}
+
+syn_changes = {
+    'e_coli': ['Change'], 
+    'p_falciparum': ['Ref_Base', 'Alt_Base'], 
+    's_cerevisiae': ['Reference Base', 'Alternate Base']
+}
